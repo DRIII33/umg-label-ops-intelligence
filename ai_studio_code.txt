@@ -1,0 +1,99 @@
+You are operating strictly as a Lead Business Intelligence Architect and BigQuery Data Engineer. 
+
+Do not write or generate any custom web application code, React components, TypeScript, Node.js server scripts, Vite configurations, or client-side array state calculations. Your sole task is to provide the exact backend mapping, calculated field formulas, and data connection definitions required to build an operational control tower dashboard natively inside Google Looker Studio.
+
+The data displayed must reconcile 100% with the actual underlying row telemetry provided in the project files. 
+
+### 1. THE DATA INVENTORY SOURCE OF TRUTH
+The dashboard must draw strictly and exclusively from two interconnected data environments. Do not assume or fabricate any other tables, fields, or schemas:
+1. DATA SOURCE A: Raw Telemetry Table (`driiiportfolio.umg_label_ops.simulated_telemetry`)
+   Derived exactly from the uploaded `umg_label_ops_sim.csv`. 
+   Schema Fields:
+   - timestamp (DATETIME)
+   - artist_name (STRING)
+   - region (STRING)
+   - dsp (STRING)
+   - genre (STRING)
+   - isrc (STRING)
+   - streams (INTEGER)
+   - marketing_spend_usd (FLOAT)
+
+2. DATA SOURCE B: Prescriptive Alerts View (`driiiportfolio.umg_label_ops.v_viral_alerts`)
+   Derived exactly from the window-partition logic defined in `v_viral_alerts.sql`.
+   Schema Fields:
+   - timestamp (DATETIME)
+   - artist_name (STRING)
+   - region (STRING)
+   - dsp (STRING)
+   - genre (STRING)
+   - isrc (STRING)
+   - streams (INTEGER)
+   - marketing_spend_usd (FLOAT)
+   - rolling_3p_stream_avg (FLOAT)
+   - stream_velocity_percentage_spike (FLOAT)
+   - calculated_status_flag (STRING) [Evaluates to: 'UNCAPTURED_VIRALITY', 'SUPPLY_CHAIN_ACCELERATION', 'FINANCIAL_STOP_LOSS', or 'STEADY_STATE']
+
+### 2. BACKEND CALCULATED METRICS & SCORECARD LOGIC
+Configure the top-level "Control Tower" executive scorecards using native Looker Studio CASE statements and conditional reduction rules mapped directly to the schema fields. Do not use local arrays or mock functions.
+
+- KPI 1: Active Uncaptured Virality Volume
+  * Operational Target: Identify tracks accelerating organically without backing budget.
+  * Looker Studio Field Formula: 
+    COUNT_DISTINCT(CASE WHEN stream_velocity_percentage_spike >= 150.0 AND marketing_spend_usd = 0.0 THEN isrc ELSE NULL END)
+  * Data Source Anchor: Data Source B (`v_viral_alerts`)
+
+- KPI 2: Active Budget Leakage Overrun (USD)
+  * Operational Target: Isolate absolute financial spend excess leaking past the +5% variance buffer of the $500 baseline target cap.
+  * Looker Studio Field Formula: 
+    SUM(CASE WHEN marketing_spend_usd > 525.00 THEN (marketing_spend_usd - 500.00) ELSE 0.00 END)
+  * Data Source Anchor: Data Source A (`simulated_telemetry`)
+
+- KPI 3: DSP Delivery Lag Incidents
+  * Operational Target: Track platform delivery points where momentum is stalling out despite live capital backing.
+  * Looker Studio Field Formula: 
+    COUNT_DISTINCT(CASE WHEN stream_velocity_percentage_spike <= -10.0 AND marketing_spend_usd > 0.0 THEN CONCAT(isrc, region) ELSE NULL END)
+  * Data Source Anchor: Data Source B (`v_viral_alerts`)
+
+### 3. METICULOUS VISUAL-TO-DATA ARCHITECTURE MAPPING
+For every chart on the dashboard interface, map the native Looker Studio component properties to prevent data discrepancies:
+
+- CHART 1: Cross-Border Virality Heatmap
+  * Native Component Type: Geo Map (Filled Map)
+  * Data Source Anchor: Data Source B (`v_viral_alerts`)
+  * Dimension: `region` (Configured as Geo-type Country ISO data string)
+  * Metric & Aggregation: `stream_velocity_percentage_spike` (Set to MAX aggregation)
+  * Chart Filter Rule: Include only rows where `stream_velocity_percentage_spike > 0.0`
+
+- CHART 2: Rolling 3-Period Streaming Velocity Trajectory
+  * Native Component Type: Dual-Axis Combo Line/Bar Chart
+  * Data Source Anchor: Data Source B (`v_viral_alerts`)
+  * X-Axis Time Dimension: `timestamp` (Formatted to YYYY-MM-DD)
+  * Left Y-Axis Metric (Bar Chart): `streams` (Set to SUM aggregation)
+  * Right Y-Axis Metric (Line Chart): `stream_velocity_percentage_spike` (Set to AVG aggregation)
+  * Static Reference Component: Add an explicit horizontal right Y-axis reference line fixed at constant value 150.0 (Labeled: "VIRAL_THRESHOLD").
+
+- CHART 3: Regional CPM Efficiency & Streaming Yield Index
+  * Native Component Type: Scatter Plot
+  * Data Source Anchor: Data Source A (`simulated_telemetry`)
+  * Base Row Dimension: `artist_name`
+  * X-Axis Metric: Create Calculated Field `blended_cpm_usd` -> (SUM(marketing_spend_usd) / SUM(streams)) * 1000
+  * Y-Axis Metric: Create Calculated Field `streams_per_dollar_yield` -> CASE WHEN SUM(marketing_spend_usd) > 0 THEN (SUM(streams) / SUM(marketing_spend_usd)) ELSE SUM(streams) END
+  * Bubble Size Scale Metric: `marketing_spend_usd` (Set to SUM aggregation)
+  * Grouping Color Dimension: `region`
+
+- CHART 4: Real-Time Cumulative Budget Variance Tracker
+  * Native Component Type: Bullet Chart
+  * Data Source Anchor: Data Source A (`simulated_telemetry`)
+  * Fixed Row Dimension: `artist_name`
+  * Target Value Metric: Create Calculated Field `calculated_budget_cap` -> COUNT_DISTINCT(isrc) * 500.00
+  * Actual Value Metric: `marketing_spend_usd` (Set to SUM aggregation)
+
+- CHART 5: Active Operational Status Triage Matrix
+  * Native Component Type: Pivot Table Grid
+  * Data Source Anchor: Data Source B (`v_viral_alerts`)
+  * Row Dimensions: `artist_name`, `isrc`
+  * Column Dimension: `dsp`
+  * Metric & Aggregation: `calculated_status_flag` (Set to COUNT_DISTINCT)
+
+### 4. OUTPUT REQUIREMENT
+Review this data matrix logic against your current setup. Recalculate your analytical results using strictly these native field definitions, filter conditions, and aggregations. Output a verification check confirming the exact calculated data dimensions and metric totals for the three main KPI scorecards to ensure complete consistency with the uploaded CSV data rows.
